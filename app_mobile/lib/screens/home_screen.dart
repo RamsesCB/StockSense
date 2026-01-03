@@ -68,43 +68,10 @@ class _DashboardView extends StatelessWidget {
         children: [
           _buildSummaryCard(
             context,
-            'Préstamos Activos',
-            '3 Equipos',
-            Icons.access_time_filled,
-            Colors.orange,
-          ),
-          const SizedBox(height: 16),
-          _buildSummaryCard(
-            context,
             'Solicitudes Aprobadas',
-            'Listo para retirar',
+            'Sin solicitudes',
             Icons.check_circle,
             Colors.green,
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Acciones Rápidas',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionCard(
-                  context,
-                  'Reservar Sala',
-                  Icons.meeting_room,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildActionCard(
-                  context,
-                  'Reportar Daño',
-                  Icons.report_problem,
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -151,30 +118,6 @@ class _DashboardView extends StatelessWidget {
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionCard(BuildContext context, String title, IconData icon) {
-    return Card(
-      clipBehavior: Clip.hardEdge,
-      child: InkWell(
-        onTap: () {},
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                size: 32,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(height: 8),
-              Text(title, textAlign: TextAlign.center),
-            ],
-          ),
         ),
       ),
     );
