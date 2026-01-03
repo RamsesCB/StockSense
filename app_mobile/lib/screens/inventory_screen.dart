@@ -18,11 +18,11 @@ class InventoryScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Catálogo de Productos',
+              'Catálogo de Archivos',
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
-            const Text('Próximamente: Lista de equipos y buscador.'),
+            const Text('Agregue: Archivos para poder visualizarlos.'),
           ],
         ),
       ),

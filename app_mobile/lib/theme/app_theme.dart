@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // Palette
-  static const Color primaryBlue = Color(0xFF0F4C75); // Deep Navy Blue
-  static const Color secondaryBlue = Color(0xFF3282B8); // Bright Blue
-  static const Color accentBlue = Color(0xFFBBE1FA); // Very Light Blue
-  static const Color darkBackground = Color(
-    0xFF1B262C,
-  ); // Dark Minimal Background
+  // Palette - Matte Lead / Gray Scale
+  static const Color primaryBlue = Color(
+    0xFF455A64,
+  ); // Matte Lead (Blue Grey 700)
+  static const Color secondaryBlue = Color(0xFF607D8B); // Blue Grey 500
+  static const Color accentBlue = Color(0xFFCFD8DC); // Blue Grey 100
+  static const Color darkBackground = Color(0xFF121212); // Pure Dark Background
   static const Color lightBackground = Color(
-    0xFFF1F6F9,
-  ); // Light Minimal Background
+    0xFFECEFF1,
+  ); // Very Light Blue Grey
 
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
@@ -44,9 +45,9 @@ class AppTheme {
     colorScheme: const ColorScheme.dark(
       primary: secondaryBlue,
       secondary: accentBlue,
-      surface: Color(0xFF222E35),
+      surface: Color(0xFF1E1E1E),
       onPrimary: Colors.white,
-      onSecondary: Color(0xFF1B262C),
+      onSecondary: Colors.black,
       onSurface: accentBlue,
     ),
     scaffoldBackgroundColor: darkBackground,
@@ -61,7 +62,7 @@ class AppTheme {
     //   elevation: 2,
     //   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     // ),
-    cardColor: const Color(0xFF222E35),
+    cardColor: const Color(0xFF1E1E1E),
     bottomNavigationBarTheme: const BottomNavigationBarThemeData(
       backgroundColor: darkBackground,
       selectedItemColor: secondaryBlue,

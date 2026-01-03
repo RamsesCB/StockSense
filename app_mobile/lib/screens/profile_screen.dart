@@ -100,11 +100,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         decoration: BoxDecoration(
                           color: theme.colorScheme.primary,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(
+                            color: const Color.fromARGB(255, 255, 255, 255),
+                            width: 2,
+                          ),
                         ),
                         child: const Icon(
                           Icons.camera_alt,
-                          color: Colors.white,
+                          color: Color.fromARGB(255, 255, 255, 255),
                           size: 20,
                         ),
                       ),
@@ -123,7 +126,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 8),
             Text(
               _user.email,
-              style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: const Color.fromARGB(255, 48, 48, 48),
+              ),
             ),
             const SizedBox(height: 8),
             Chip(
@@ -137,20 +142,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 48),
             _buildStatCard(theme),
             const SizedBox(height: 32),
-
-            // Active Loans Section
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Préstamos Activos',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildLoanCard(theme, 'Laptop HP Pavilion', 'Vence: Hoy'),
-            _buildLoanCard(theme, 'Multímetro Digital', 'Vence: Mañana'),
           ],
         ),
       ),
@@ -174,11 +165,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem(theme, '2', 'Préstamos'),
-          Container(height: 40, width: 1, color: Colors.grey.withOpacity(0.3)),
-          _buildStatItem(theme, '0', 'Vencidos'),
-          Container(height: 40, width: 1, color: Colors.grey.withOpacity(0.3)),
-          _buildStatItem(theme, '15', 'Completados'),
+          _buildStatItem(theme, '2', 'Libros Subidos'),
+          Container(
+            height: 40,
+            width: 1,
+            color: const Color.fromARGB(255, 70, 70, 70).withOpacity(0.3),
+          ),
+          _buildStatItem(theme, '0', 'Pendientes'),
+          Container(
+            height: 40,
+            width: 1,
+            color: const Color.fromARGB(255, 77, 77, 77).withOpacity(0.3),
+          ),
+          _buildStatItem(theme, '15', 'Leidos'),
         ],
       ),
     );
@@ -196,26 +195,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         Text(label, style: theme.textTheme.bodySmall),
       ],
-    );
-  }
-
-  Widget _buildLoanCard(ThemeData theme, String title, String subtitle) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(Icons.devices, color: theme.colorScheme.primary),
-        ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        subtitle: Text(subtitle, style: TextStyle(color: Colors.orange[700])),
-        trailing: const Icon(Icons.chevron_right),
-      ),
     );
   }
 }
