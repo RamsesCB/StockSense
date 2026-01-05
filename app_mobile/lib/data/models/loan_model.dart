@@ -4,9 +4,9 @@ class LoanModel {
   final int productId;
   final DateTime loanDate;
   final DateTime returnDate;
-  final String status; // 'active', 'returned', 'overdue'
+  final String status;
 
-  LoanModel({
+  const LoanModel({
     required this.id,
     required this.userId,
     required this.productId,
@@ -31,8 +31,7 @@ class LoanModel {
       'id': id,
       'user_id': userId,
       'product_id': productId,
-      'loan_date': loanDate
-          .toIso8601String(), // Or format as "yyyy-MM-dd HH:mm:ss" if PHP strictly needs it
+      'loan_date': loanDate.toIso8601String(),
       'return_date': returnDate.toIso8601String(),
       'status': status,
     };

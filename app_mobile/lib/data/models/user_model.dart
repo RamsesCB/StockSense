@@ -2,10 +2,10 @@ class UserModel {
   final int id;
   final String fullName;
   final String email;
-  final String role; // 'admin' or 'student'
+  final String role;
   final String? studentCode;
 
-  UserModel({
+  const UserModel({
     required this.id,
     required this.fullName,
     required this.email,
@@ -13,7 +13,6 @@ class UserModel {
     this.studentCode,
   });
 
-  // Factory constructor for creating a new UserModel instance from a map.
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
       id: json['id'] as int,
@@ -24,7 +23,6 @@ class UserModel {
     );
   }
 
-  // Method for converting a UserModel instance to a map.
   Map<String, dynamic> toJson() {
     return {
       'id': id,

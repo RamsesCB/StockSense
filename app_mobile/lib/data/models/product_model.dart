@@ -8,7 +8,7 @@ class ProductModel {
   final String? imageUrl;
   final bool isActive;
 
-  ProductModel({
+  const ProductModel({
     required this.id,
     required this.name,
     required this.description,
@@ -28,7 +28,6 @@ class ProductModel {
       stock: json['stock'] as int,
       qrCode: json['qr_code'] as String,
       imageUrl: json['image_url'] as String?,
-      // Handle boolean conversion from int (1/0) or bool depending on API
       isActive: json['is_active'] == 1 || json['is_active'] == true,
     );
   }
@@ -42,7 +41,7 @@ class ProductModel {
       'stock': stock,
       'qr_code': qrCode,
       'image_url': imageUrl,
-      'is_active': isActive ? 1 : 0, // Send as 1/0 for PHP compatibility
+      'is_active': isActive ? 1 : 0,
     };
   }
 }
