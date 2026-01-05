@@ -1,43 +1,9 @@
+import 'dart:math';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../data/services/auth_service.dart';
 import 'home_screen.dart';
-
-class AuthService {
-  AuthService();
-
-  // Use getters to avoid immediate access to .instance if Firebase isn't ready
-  FirebaseAuth get _auth => FirebaseAuth.instance;
-  GoogleSignIn get _googleSignIn => GoogleSignIn();
-  FacebookAuth get _facebookAuth => FacebookAuth.instance;
-
-  Future<UserCredential?> signInWithGoogle() async {
-    final googleUser = await _googleSignIn.signIn();
-    if (googleUser == null) {
-      return null;
-    }
-
-    final googleAuth = await googleUser.authentication;
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
-    return _auth.signInWithCredential(credential);
-  }
-
-  Future<UserCredential?> signInWithFacebook() async {
-    final loginResult = await _facebookAuth.login(permissions: ['email']);
-    if (loginResult.status != LoginStatus.success) {
-      return null;
-    }
-
-    final credential = FacebookAuthProvider.credential(
-      loginResult.accessToken!.token,
-    );
-    return _auth.signInWithCredential(credential);
-  }
-}
 
 class LoginPage extends StatefulWidget {
   const LoginPage({
@@ -75,7 +41,9 @@ class _LoginPageState extends State<LoginPage> {
       }
       final user = credential?.user;
       if (user != null) {
-        // Navigate to HomeScreen on success
+        await _generateAndSaveUserData(user);
+
+        if (!mounted) return;
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const HomeScreen()),
         );
@@ -99,14 +67,26 @@ class _LoginPageState extends State<LoginPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _generateAndSaveUserData(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final random = Random.secure();
+    String generatedId = '';
+    for (int i = 0; i < 12; i++) {
+      generatedId += random.nextInt(10).toString();
+    }
+
+    final String username = user.displayName ?? user.email ?? 'Usuario';
+
+    await prefs.setString('user_id', generatedId);
+    await prefs.setString('user_name', username);
+
+    debugPrint('Saved UserID: $generatedId, Name: $username');
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Navigate directly to HomeScreen if testing without login (Optional bypass)
-    // Uncomment next line to bypass login for UI testing
-    // return const HomeScreen();
-
     final size = MediaQuery.of(context).size;
-    // Use the theme colors
     final theme = Theme.of(context);
     final primaryColor = theme.colorScheme.primary;
 
@@ -154,8 +134,7 @@ class _LoginPageState extends State<LoginPage> {
                                 const Text(
                                   'Firebase no está configurado',
                                   style: TextStyle(
-                                    color: Colors
-                                        .red, // Changed to red for visibility on light theme
+                                    color: Colors.red,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -230,9 +209,7 @@ class _LoginPageState extends State<LoginPage> {
                         _AuthButton(
                           icon: Icons.arrow_forward_rounded,
                           label: 'Ingresar (Saltar Login)',
-                          background: const Color(
-                            0xFF0F4C75,
-                          ), // StockSense Primary Blue
+                          background: const Color(0xFF0F4C75),
                           foreground: Colors.white,
                           onPressed: () {
                             Navigator.of(context).pushReplacement(

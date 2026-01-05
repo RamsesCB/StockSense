@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">StockSense</string>
+    <!-- Replace "000000000000" with your actual Facebook App ID -->
+    <string name="facebook_app_id">000000000000</string>
+    <!-- Replace "fb000000000000" with "fb" + your actual Facebbok App ID -->
+    <string name="fb_login_protocol_scheme">fb000000000000</string>
+    <string name="facebook_client_token">00000000000000000000000000000000</string>
+</resources>

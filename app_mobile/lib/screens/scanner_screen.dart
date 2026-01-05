@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
@@ -9,12 +11,28 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  // MobileScannerController to control camera (torch, switch camera)
   final MobileScannerController _controller = MobileScannerController(
     detectionSpeed: DetectionSpeed.noDuplicates,
   );
 
   bool _isScanning = false;
+  String? _userId;
+  String? _userName;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _userId = prefs.getString('user_id');
+      _userName = prefs.getString('user_name');
+    });
+  }
 
   @override
   void dispose() {
@@ -28,13 +46,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
-        setState(() => _isScanning = false); // Stop scanning to show result
+        setState(() => _isScanning = false);
 
         debugPrint('Barcode found! ${barcode.rawValue}');
 
         if (!mounted) return;
 
-        // Show dialog with result
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -44,7 +61,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  setState(() => _isScanning = true); // Resume scanning
+                  setState(() => _isScanning = true);
                 },
                 child: const Text('OK'),
               ),
@@ -56,7 +73,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
           }
         });
 
-        break; // Only handle first code
+        break;
       }
     }
   }
@@ -64,40 +81,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Escáner QR'),
-        actions: [
-          // Torch Button
-          ValueListenableBuilder(
-            valueListenable: _controller,
-            builder: (context, state, child) {
-              final color = state.torchState == TorchState.on
-                  ? Colors.yellow
-                  : Colors.grey;
-              final icon = state.torchState == TorchState.on
-                  ? Icons.flash_on
-                  : Icons.flash_off;
-              return IconButton(
-                icon: Icon(icon, color: color),
-                onPressed: () => _controller.toggleTorch(),
-              );
-            },
-          ),
-          // Camera Switch Button
-          ValueListenableBuilder(
-            valueListenable: _controller,
-            builder: (context, state, child) {
-              final icon = state.cameraDirection == CameraFacing.front
-                  ? Icons.camera_front
-                  : Icons.camera_rear;
-              return IconButton(
-                icon: Icon(icon),
-                onPressed: () => _controller.switchCamera(),
-              );
-            },
-          ),
-        ],
-      ),
       body: _isScanning
           ? Stack(
               children: [
@@ -114,6 +97,55 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         borderLength: 30,
                         borderWidth: 10,
                         cutOutSize: 300,
+                      ),
+                    ),
+                  ),
+                ),
+                SafeArea(
+                  child: Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        child: ValueListenableBuilder(
+                          valueListenable: _controller,
+                          builder: (context, state, child) {
+                            if (!state.isInitialized || !state.isRunning) {
+                              return const SizedBox();
+                            }
+
+                            return Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  color: state.torchState == TorchState.on
+                                      ? Colors.amber
+                                      : Colors.white,
+                                  icon: Icon(
+                                    state.torchState == TorchState.on
+                                        ? Icons.flash_on
+                                        : Icons.flash_off,
+                                  ),
+                                  onPressed: () => _controller.toggleTorch(),
+                                ),
+                                IconButton(
+                                  color: Colors.white,
+                                  icon: Icon(
+                                    state.cameraDirection == CameraFacing.front
+                                        ? Icons.camera_front
+                                        : Icons.camera_rear,
+                                  ),
+                                  onPressed: () => _controller.switchCamera(),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -165,11 +197,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
                         ),
                       ],
                     ),
-                    child: Icon(
-                      Icons.qr_code_2,
-                      size: 200,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
+                    child: (_userId != null && _userName != null)
+                        ? QrImageView(
+                            data: '$_userName:$_userId',
+                            version: QrVersions.auto,
+                            size: 200.0,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                          )
+                        : Icon(
+                            Icons.qr_code_2,
+                            size: 200,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
                   ),
                   const SizedBox(height: 30),
                   Text(
@@ -179,7 +220,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const Text('Muestra este código para recibir préstamos'),
+                  const Text(
+                    'Muestra este código para compartir tu inventario',
+                  ),
                   const SizedBox(height: 40),
                   ElevatedButton.icon(
                     onPressed: () => setState(() => _isScanning = true),
@@ -199,17 +242,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
     );
   }
 }
-
-// Utility class for the Overlay Shape (copy-paste standard or use a library,
-// strictly creating a simple one here conceptually, but for simplicity relying on a simplistic
-// Container with border or just the bare scanner if User didn't ask for overlay logic explicitly.
-// But MobileScanner typically works best with a visual guide.
-// Implementing a custom simplified painter to avoid complex deps if needed,
-// BUT mobile_scanner package used to have an overlay.
-// Checking recent docs: built-in overlay is gone in v5?
-// Let's implement a simple Stack with a hole or just a border.
-// Actually, let's keep it simple for now, the OverlayShape is not part of material.
-// I'll create a simple specific class for this or simpler UI.
 
 class QrScannerOverlayShape extends ShapeBorder {
   final Color borderColor;
@@ -250,8 +282,6 @@ class QrScannerOverlayShape extends ShapeBorder {
     return getLeftTopPath(rect);
   }
 
-  // Custom painter is complex to implement fully inline correctly without errors.
-  // I will revert to a standard Container approach for the overlay to ensure it compiles safely.
   @override
   void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {
     final cutOutRect = Rect.fromCenter(
@@ -270,49 +300,36 @@ class QrScannerOverlayShape extends ShapeBorder {
       ..strokeWidth = borderWidth;
 
     final cutOutPath = Path()..addRect(cutOutRect);
-    // Draw background with hole
     canvas.drawPath(
       Path.combine(PathOperation.difference, Path()..addRect(rect), cutOutPath),
       backgroundPaint,
     );
 
-    // Draw corners
     final RRect borderRect = RRect.fromRectAndRadius(
       cutOutRect,
       Radius.circular(borderRadius),
     );
-    // Top Left
-    canvas.drawPath(
-      Path()
-        ..moveTo(borderRect.left, borderRect.top + borderLength)
-        ..lineTo(borderRect.left, borderRect.top)
-        ..lineTo(borderRect.left + borderLength, borderRect.top),
-      borderPaint,
-    );
-    // Top Right
-    canvas.drawPath(
-      Path()
-        ..moveTo(borderRect.right, borderRect.top + borderLength)
-        ..lineTo(borderRect.right, borderRect.top)
-        ..lineTo(borderRect.right - borderLength, borderRect.top),
-      borderPaint,
-    );
-    // Bottom Left
-    canvas.drawPath(
-      Path()
-        ..moveTo(borderRect.left, borderRect.bottom - borderLength)
-        ..lineTo(borderRect.left, borderRect.bottom)
-        ..lineTo(borderRect.left + borderLength, borderRect.bottom),
-      borderPaint,
-    );
-    // Bottom Right
-    canvas.drawPath(
-      Path()
-        ..moveTo(borderRect.right, borderRect.bottom - borderLength)
-        ..lineTo(borderRect.right, borderRect.bottom)
-        ..lineTo(borderRect.right - borderLength, borderRect.bottom),
-      borderPaint,
-    );
+
+    // Draw corners optimized
+    final Path cornersPath = Path()
+      // Top Left
+      ..moveTo(borderRect.left, borderRect.top + borderLength)
+      ..lineTo(borderRect.left, borderRect.top)
+      ..lineTo(borderRect.left + borderLength, borderRect.top)
+      // Top Right
+      ..moveTo(borderRect.right, borderRect.top + borderLength)
+      ..lineTo(borderRect.right, borderRect.top)
+      ..lineTo(borderRect.right - borderLength, borderRect.top)
+      // Bottom Left
+      ..moveTo(borderRect.left, borderRect.bottom - borderLength)
+      ..lineTo(borderRect.left, borderRect.bottom)
+      ..lineTo(borderRect.left + borderLength, borderRect.bottom)
+      // Bottom Right
+      ..moveTo(borderRect.right, borderRect.bottom - borderLength)
+      ..lineTo(borderRect.right, borderRect.bottom)
+      ..lineTo(borderRect.right - borderLength, borderRect.bottom);
+
+    canvas.drawPath(cornersPath, borderPaint);
   }
 
   @override
