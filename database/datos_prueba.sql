@@ -1,3 +1,5 @@
+--Corregido
+
 USE stocksense_db;
 
 -- ============================================
@@ -12,11 +14,11 @@ INSERT INTO users (full_name, email, password, role, student_code) VALUES
 ('RREE21 Data', 'rree21@stocksense.edu', 'RREE21', 'admin', 'ADM004'),
 
 -- Estudiantes (5)
-('Juan Pérez', 'juan.perez@student.edu', 'Juan', 'student', 'STU2024001'),
-('María García', 'maria.garcia@student.edu', 'María', 'student', 'STU2024002'),
-('Carlos López', 'carlos.lopez@student.edu', 'Carlos', 'student', 'STU2024003'),
-('Ana Rodríguez', 'ana.rodriguez@student.edu', 'Ana', 'student', 'STU2024004'),
-('Pedro Martínez', 'pedro.martinez@student.edu', 'Pedro', 'student', 'STU2024005');
+('Juan Pérez', 'juan.perez@student.edu', 'Juan', 'student', 'STU2026001'),
+('María García', 'maria.garcia@student.edu', 'María', 'student', 'STU2026002'),
+('Carlos López', 'carlos.lopez@student.edu', 'Carlos', 'student', 'STU2026003'),
+('Ana Rodríguez', 'ana.rodriguez@student.edu', 'Ana', 'student', 'STU2026004'),
+('Pedro Martínez', 'pedro.martinez@student.edu', 'Pedro', 'student', 'STU2026005');
 
 -- ============================================
 -- 2. INSERTAR PRODUCTOS DE PRUEBA (15 productos)
@@ -52,60 +54,127 @@ INSERT INTO products (name, description, category, stock, qr_code, image_url, is
 -- ============================================
 
 -- Insertar préstamos
-INSERT INTO loans (user_id, product_id, loan_date, return_date, status) VALUES
+INSERT INTO loans (user_id, product_id, loan_date, return_date, status, approved_by) VALUES
 -- Préstamos activos (3)
-(6, 1, '2024-12-20 10:30:00', '2024-12-27 18:00:00', 'active'),  -- Juan tiene Laptop
-(7, 6, '2024-12-21 14:15:00', '2024-12-28 14:15:00', 'active'),  -- María tiene Microscopio
-(8, 10, '2024-12-22 09:45:00', '2024-12-29 09:45:00', 'active'), -- Carlos tiene Arduino
+(6, 1, '2025-12-20 10:30:00', '2026-01-27 18:00:00', 'active', 1),  -- Juan tiene Laptop
+(7, 6, '2025-12-21 14:15:00', '2026-01-28 14:15:00', 'active', 1),  -- María tiene Microscopio
+(8, 10, '2025-12-22 09:45:00', '2026-01-29 09:45:00', 'active', 2), -- Carlos tiene Arduino
 
 -- Préstamos devueltos (3)
-(6, 2, '2024-12-10 11:00:00', '2024-12-17 11:00:00', 'returned'),
-(9, 8, '2024-12-15 16:20:00', '2024-12-22 16:20:00', 'returned'),
-(7, 12, '2024-12-18 13:30:00', '2024-12-25 13:30:00', 'returned'),
+(6, 2, '2025-12-10 11:00:00', '2025-12-17 11:00:00', 'returned', 1),
+(9, 8, '2025-12-15 16:20:00', '2025-12-22 16:20:00', 'returned', 2),
+(7, 12, '2025-12-18 13:30:00', '2025-12-25 13:30:00', 'returned', 1),
 
 -- Préstamos vencidos (2)
-(8, 3, '2024-12-05 10:00:00', '2024-12-12 10:00:00', 'overdue'),
-(9, 5, '2024-12-08 15:45:00', '2024-12-15 15:45:00', 'overdue');
+(8, 3, '2025-12-05 10:00:00', '2025-12-12 10:00:00', 'overdue', 1),
+(9, 5, '2025-12-08 15:45:00', '2025-12-15 15:45:00', 'overdue', 2);
 
 -- ============================================
 -- 4. ACTUALIZAR STOCK SEGÚN PRÉSTAMOS ACTIVOS
 -- ============================================
--- Reducir stock de productos prestados actualmente
+
+-- Actualizar stock basado en conteo de préstamos activos
 UPDATE products p
-JOIN loans l ON p.id = l.product_id
-SET p.stock = p.stock - 1
-WHERE l.status = 'active';
+SET p.stock = p.stock - (
+    SELECT COUNT(*) 
+    FROM loans l 
+    WHERE l.product_id = p.id 
+    AND l.status = 'active'
+)
+WHERE p.id IN (SELECT DISTINCT product_id FROM loans WHERE status = 'active');
 
 -- ============================================
--- 5. DATOS ADICIONALES: Auditoría
+-- 5. INSERTAR REGISTROS EN LOAN_HISTORY
 -- ============================================
-CREATE TABLE IF NOT EXISTS audit_log (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    table_name VARCHAR(50) NOT NULL,
-    record_id INT NOT NULL,
-    action VARCHAR(20) NOT NULL, -- 'INSERT', 'UPDATE', 'DELETE'
-    old_data JSON,
-    new_data JSON,
-    user_id INT,
-    ip_address VARCHAR(45),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    INDEX idx_table_record (table_name, record_id),
-    INDEX idx_created_at (created_at)
-);
 
--- Insertar algunos logs de auditoría
+-- Registrar el historial de los préstamos creados
+INSERT INTO loan_history (loan_id, user_id, product_id, action, new_status, changed_by) VALUES
+(1, 6, 1, 'created', 'active', 1),
+(2, 7, 6, 'created', 'active', 1),
+(3, 8, 10, 'created', 'active', 2),
+(4, 6, 2, 'created', 'returned', 1),
+(5, 9, 8, 'created', 'returned', 2),
+(6, 7, 12, 'created', 'returned', 1),
+(7, 8, 3, 'created', 'overdue', 1),
+(8, 9, 5, 'created', 'overdue', 2);
+
+-- ============================================
+-- 6. INSERTAR NOTIFICACIONES DE PRUEBA
+-- ============================================
+
+INSERT INTO notifications (user_id, title, message, type, is_read) VALUES
+-- Notificaciones para administradores
+(1, 'Bienvenido al Sistema', 'El sistema StockSense ha sido inicializado correctamente', 'success', 1),
+(1, 'Stock Bajo Alert', 'El producto "PC Gamer" tiene stock bajo: 3 unidades', 'warning', 0),
+(1, 'Stock Bajo Alert', 'El producto "Centrífuga 4000rpm" tiene stock bajo: 2 unidades', 'warning', 0),
+
+-- Notificaciones para estudiantes
+(8, 'Préstamo Vencido', 'Tu préstamo del producto "Monitor Dell 24" está vencido', 'error', 0),
+(9, 'Préstamo Vencido', 'Tu préstamo del producto "PC Gamer" está vencido', 'error', 0),
+(6, 'Préstamo Próximo a Vencer', 'Tu préstamo vence en 7 días', 'warning', 0);
+
+-- ============================================
+-- 7. INSERTAR RESERVAS DE PRUEBA
+-- ============================================
+
+INSERT INTO reservations (user_id, product_id, reservation_date, pickup_date, status, notes) VALUES
+(9, 2, NOW(), DATE_ADD(NOW(), INTERVAL 2 DAY), 'pending', 'Necesito para proyecto de tesis'),
+(6, 11, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), 'confirmed', 'Para práctica de laboratorio');
+
+-- ============================================
+-- 8. INSERTAR LOGS DE AUDITORÍA
+-- ============================================
+
 INSERT INTO audit_log (table_name, record_id, action, user_id, ip_address) VALUES
 ('products', 1, 'INSERT', 1, '192.168.1.100'),
+('products', 2, 'INSERT', 1, '192.168.1.100'),
 ('users', 6, 'INSERT', 1, '192.168.1.100'),
-('loans', 1, 'INSERT', 2, '192.168.1.101');
+('users', 7, 'INSERT', 1, '192.168.1.100'),
+('loans', 1, 'INSERT', 1, '192.168.1.100'),
+('loans', 2, 'INSERT', 1, '192.168.1.100'),
+('loans', 7, 'UPDATE', 1, '192.168.1.101'),
+('loans', 8, 'UPDATE', 2, '192.168.1.101');
 
 -- ============================================
--- CONSULTA DE VERIFICACIÓN
+-- 9. ACTUALIZAR LAST_MOVEMENT EN PRODUCTOS
 -- ============================================
-SELECT '=== RESUMEN DE DATOS ===' as info;
-SELECT 'Usuarios:' as tipo, COUNT(*) as cantidad FROM users UNION ALL
-SELECT 'Productos:', COUNT(*) FROM products UNION ALL
-SELECT 'Préstamos:', COUNT(*) FROM loans UNION ALL
-SELECT 'Préstamos activos:', COUNT(*) FROM loans WHERE status = 'active' UNION ALL
-SELECT 'Préstamos vencidos:', COUNT(*) FROM loans WHERE status = 'overdue';
+
+UPDATE products 
+SET last_movement_date = '2025-12-29 09:45:00',
+    last_movement_type = 'loan'
+WHERE id IN (1, 6, 10);
+
+-- ============================================
+-- 10. CONSULTA DE VERIFICACIÓN
+-- ============================================
+
+SELECT '========================================' as '';
+SELECT '    RESUMEN DE DATOS INSERTADOS' as '';
+SELECT '========================================' as '';
+
+SELECT 'Usuarios:' as Tipo, COUNT(*) as Cantidad FROM users 
+UNION ALL
+SELECT 'Productos:', COUNT(*) FROM products 
+UNION ALL
+SELECT 'Categorías:', COUNT(*) FROM categories
+UNION ALL
+SELECT 'Préstamos Total:', COUNT(*) FROM loans 
+UNION ALL
+SELECT '  - Activos:', COUNT(*) FROM loans WHERE status = 'active'
+UNION ALL
+SELECT '  - Devueltos:', COUNT(*) FROM loans WHERE status = 'returned'
+UNION ALL
+SELECT '  - Vencidos:', COUNT(*) FROM loans WHERE status = 'overdue'
+UNION ALL
+SELECT 'Notificaciones:', COUNT(*) FROM notifications
+UNION ALL
+SELECT 'Reservas:', COUNT(*) FROM reservations
+UNION ALL
+SELECT 'Logs Auditoría:', COUNT(*) FROM audit_log;
+
+SELECT '========================================' as '';
+SELECT 'CREDENCIALES DE PRUEBA:' as '';
+SELECT '========================================' as '';
+SELECT 'Admin: admin@stocksense.edu / admin123' as '';
+SELECT 'Student: juan.perez@student.edu / student123' as '';
+SELECT '========================================' as '';

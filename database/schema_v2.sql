@@ -1,3 +1,4 @@
+--SCHEMA V2 (EXTENSIONS - CORREGIDO)
 
 USE stocksense_db;
 
@@ -23,8 +24,10 @@ ADD COLUMN actual_return_date DATETIME,
 ADD COLUMN condition_before TEXT,
 ADD COLUMN condition_after TEXT,
 ADD COLUMN notes TEXT,
-ADD COLUMN approved_by INT,
-ADD FOREIGN KEY (approved_by) REFERENCES users(id);
+ADD COLUMN approved_by INT DEFAULT NULL,
+-- Con politica ON DELETE SET NULL
+ADD FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE;
+
 
 -- ============================================
 -- NUEVA TABLA: loan_history (Historial completo)
@@ -42,13 +45,14 @@ CREATE TABLE loan_history (
     changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id),
-    FOREIGN KEY (product_id) REFERENCES products(id),
-    FOREIGN KEY (changed_by) REFERENCES users(id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT,
+    FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE SET NULL,
     
     INDEX idx_loan_id (loan_id),
-    INDEX idx_changed_at (changed_at)
-);
+    INDEX idx_changed_at (changed_at),
+    INDEX idx_changed_by (changed_by)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
 -- NUEVA TABLA: reservations (Reservas futuras)
@@ -62,6 +66,7 @@ CREATE TABLE reservations (
     status ENUM('pending', 'confirmed', 'cancelled', 'expired') DEFAULT 'pending',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
@@ -72,7 +77,7 @@ CREATE TABLE reservations (
     INDEX idx_pickup_date (pickup_date),
     
     CONSTRAINT chk_pickup_after_reservation CHECK (pickup_date >= reservation_date)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
 -- NUEVA TABLA: notifications (Notificaciones)
@@ -86,14 +91,16 @@ CREATE TABLE notifications (
     is_read TINYINT(1) DEFAULT 0,
     related_table VARCHAR(50),
     related_id INT,
+    expires_at DATETIME DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     
     INDEX idx_user_id (user_id),
     INDEX idx_is_read (is_read),
-    INDEX idx_created_at (created_at)
-);
+    INDEX idx_created_at (created_at),
+    INDEX idx_expires_at (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================
 -- NUEVA TABLA: settings (Configuraciones)
@@ -105,8 +112,14 @@ CREATE TABLE settings (
     setting_type ENUM('string', 'integer', 'boolean', 'json') DEFAULT 'string',
     category VARCHAR(30),
     description TEXT,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    -- VAlidacion de booleanos
+    CONSTRAINT chk_boolean_values 
+    CHECK (
+        setting_type != 'boolean' OR 
+        setting_value IN ('0', '1', 'true', 'false')
+    )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Insertar configuraciones por defecto
 INSERT INTO settings (setting_key, setting_value, setting_type, category, description) VALUES
@@ -131,7 +144,7 @@ CREATE INDEX idx_loans_dates ON loans(loan_date, return_date);
 -- NUEVOS PROCEDIMIENTOS ALMACENADOS
 -- ============================================
 
--- Procedimiento para realizar un préstamo
+-- Procedimiento para realizar un préstamo (Mejorado)
 DELIMITER $$
 CREATE PROCEDURE sp_create_loan(
     IN p_user_id INT,
@@ -143,57 +156,71 @@ CREATE PROCEDURE sp_create_loan(
 )
 BEGIN
     DECLARE v_stock INT;
+    DECLARE v_is_active TINYINT(1);
     DECLARE v_max_loans INT;
     DECLARE v_current_loans INT;
+    DECLARE v_user_locked TINYINT(1);
+    -- Verificacion si el ususario esta bloqueado
+    SELECT is_locked INTO v_user_locked FROM users WHERE id = p_user_id;
     
-    -- Verificar stock
-    SELECT stock INTO v_stock FROM products WHERE id = p_product_id;
-    
-    -- Verificar límite de préstamos
-    SELECT setting_value INTO v_max_loans 
-    FROM settings 
-    WHERE setting_key = 'max_loans_per_user';
-    
-    SELECT COUNT(*) INTO v_current_loans 
-    FROM loans 
-    WHERE user_id = p_user_id AND status = 'active';
-    
-    IF v_stock <= 0 THEN
-        SET p_message = 'Producto no disponible en stock';
-        SET p_loan_id = NULL;
-    ELSEIF v_current_loans >= v_max_loans THEN
-        SET p_message = CONCAT('Límite de préstamos alcanzado (', v_max_loans, ')');
+    IF v_user_locked = 1 THEN
+        SET p_message = 'Usuario bloqueado. No puede realizar préstamos';
         SET p_loan_id = NULL;
     ELSE
-        -- Crear préstamo
-        INSERT INTO loans (user_id, product_id, loan_date, return_date, approved_by)
-        VALUES (
-            p_user_id, 
-            p_product_id, 
-            NOW(), 
-            DATE_ADD(NOW(), INTERVAL p_loan_days DAY),
-            p_approved_by
-        );
-        
-        SET p_loan_id = LAST_INSERT_ID();
-        
-        -- Actualizar stock
-        UPDATE products 
-        SET stock = stock - 1,
-            last_movement_date = NOW(),
-            last_movement_type = 'loan'
+        -- Verificar stock Y si producto está activo
+        SELECT stock, is_active INTO v_stock, v_is_active 
+        FROM products 
         WHERE id = p_product_id;
         
-        -- Registrar en historial
-        INSERT INTO loan_history (loan_id, user_id, product_id, action, new_status)
-        VALUES (p_loan_id, p_user_id, p_product_id, 'created', 'active');
+        -- Verificar límite de préstamos
+        SELECT setting_value INTO v_max_loans 
+        FROM settings 
+        WHERE setting_key = 'max_loans_per_user';
         
-        SET p_message = 'Préstamo creado exitosamente';
+        SELECT COUNT(*) INTO v_current_loans 
+        FROM loans 
+        WHERE user_id = p_user_id AND status = 'active';
+        
+        IF v_is_active = 0 THEN
+            SET p_message = 'Producto no activo';
+            SET p_loan_id = NULL;
+        ELSEIF v_stock <= 0 THEN
+            SET p_message = 'Producto no disponible en stock';
+            SET p_loan_id = NULL;
+        ELSEIF v_current_loans >= v_max_loans THEN
+            SET p_message = CONCAT('Límite de préstamos alcanzado (', v_max_loans, ')');
+            SET p_loan_id = NULL;
+        ELSE
+            -- Crear préstamo
+            INSERT INTO loans (user_id, product_id, loan_date, return_date, approved_by)
+            VALUES (
+                p_user_id, 
+                p_product_id, 
+                NOW(), 
+                DATE_ADD(NOW(), INTERVAL p_loan_days DAY),
+                p_approved_by
+            );
+            
+            SET p_loan_id = LAST_INSERT_ID();
+            
+            -- Actualizar stock
+            UPDATE products 
+            SET stock = stock - 1,
+                last_movement_date = NOW(),
+                last_movement_type = 'loan'
+            WHERE id = p_product_id;
+            
+            -- Registrar en historial
+            INSERT INTO loan_history (loan_id, user_id, product_id, action, new_status, changed_by)
+            VALUES (p_loan_id, p_user_id, p_product_id, 'created', 'active', p_approved_by);
+            
+            SET p_message = 'Préstamo creado exitosamente';
+        END IF;
     END IF;
 END$$
 DELIMITER ;
 
--- Procedimiento para devolver un préstamo
+-- Procedimiento para devolver un préstamo (MEJORADO)
 DELIMITER $$
 CREATE PROCEDURE sp_return_loan(
     IN p_loan_id INT,
@@ -211,9 +238,9 @@ BEGIN
     INTO v_product_id, v_user_id, v_status
     FROM loans 
     WHERE id = p_loan_id;
-    
-    IF v_status != 'active' THEN
-        SET p_message = 'Este préstamo no está activo';
+    --Aceptar tanto 'active' como 'overdue'
+    IF v_status NOT IN ('active', 'overdue') THEN
+        SET p_message = CONCAT('Este préstamo no puede ser devuelto (estado: ', v_status, ')');
     ELSE
         -- Actualizar préstamo
         UPDATE loans 
@@ -230,8 +257,8 @@ BEGIN
         WHERE id = v_product_id;
         
         -- Registrar en historial
-        INSERT INTO loan_history (loan_id, user_id, product_id, action, old_status, new_status)
-        VALUES (p_loan_id, v_user_id, v_product_id, 'returned', 'active', 'returned');
+        INSERT INTO loan_history (loan_id, user_id, product_id, action, old_status, new_status, changed_by)
+        VALUES (p_loan_id, v_user_id, v_product_id, 'returned', v_status, 'returned', p_returned_by);
         
         SET p_message = 'Préstamo devuelto exitosamente';
     END IF;
@@ -242,7 +269,7 @@ DELIMITER ;
 -- TRIGGERS MEJORADOS
 -- ============================================
 
--- Trigger para notificar stock bajo
+-- Trigger para notificar stock bajo (Mejorado)
 DELIMITER $$
 CREATE TRIGGER tr_check_low_stock
 AFTER UPDATE ON products
@@ -252,11 +279,10 @@ BEGIN
     
     IF NEW.stock != OLD.stock THEN
         -- Obtener umbral
-        SELECT setting_value INTO v_threshold 
+        SELECT CAST(setting_value AS UNSIGNED) INTO v_threshold 
         FROM settings 
         WHERE setting_key = 'low_stock_threshold';
-        
-        -- Crear notificación si stock es bajo
+        -- Crear notificación si stock es bajo (Solo a 5 admins, avisar si se añaden a más)
         IF NEW.stock <= v_threshold AND NEW.stock > 0 THEN
             INSERT INTO notifications (user_id, title, message, type)
             SELECT id, 
@@ -264,10 +290,10 @@ BEGIN
                    CONCAT('El producto "', NEW.name, '" tiene stock bajo: ', NEW.stock, ' unidades'),
                    'warning'
             FROM users 
-            WHERE role = 'admin';
+            WHERE role = 'admin'
+            LIMIT 5; 
         END IF;
-        
-        -- Notificar si stock es cero
+        -- Notificar si stock es cero (Repito solo a 5 admins)
         IF NEW.stock = 0 THEN
             INSERT INTO notifications (user_id, title, message, type)
             SELECT id, 
@@ -275,22 +301,22 @@ BEGIN
                    CONCAT('El producto "', NEW.name, '" se ha agotado'),
                    'error'
             FROM users 
-            WHERE role = 'admin';
+            WHERE role = 'admin'
+            LIMIT 5;
         END IF;
     END IF;
 END$$
 DELIMITER ;
 
--- Trigger para préstamos vencidos
+-- Trigger para préstamos vencidos (CORREGIDO - SIN LOOP)
 DELIMITER $$
 CREATE TRIGGER tr_check_overdue_loans
-AFTER UPDATE ON loans
+BEFORE UPDATE ON loans
 FOR EACH ROW
 BEGIN
-    IF NEW.return_date < NOW() AND NEW.status = 'active' THEN
-        -- Marcar como vencido
-        UPDATE loans SET status = 'overdue' WHERE id = NEW.id;
-        
+    -- Solo marcar como vencido si se está actualizando y ya pasó la fecha
+    IF NEW.return_date < NOW() AND NEW.status = 'active' AND OLD.status = 'active' THEN
+        SET NEW.status = 'overdue';
         -- Crear notificación
         INSERT INTO notifications (user_id, title, message, type)
         VALUES (
@@ -302,7 +328,7 @@ BEGIN
         
         -- Registrar en historial
         INSERT INTO loan_history (loan_id, user_id, product_id, action, old_status, new_status)
-        VALUES (NEW.id, NEW.user_id, NEW.product_id, 'overdue', 'active', 'overdue');
+        VALUES (NEW.id, NEW.user_id, NEW.product_id, 'updated', 'active', 'overdue');
     END IF;
 END$$
 DELIMITER ;
