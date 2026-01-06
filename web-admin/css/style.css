@@ -1,0 +1,105 @@
+/* Estilos básicos para replicar la vista del dashboard */
+:root {
+	--bg-main: #0f1117;
+	--bg-surface: #1b1f2a;
+	--border: #2a3040;
+	--text: #e5e7eb;
+	--muted: #9ca3af;
+	--accent: #4b5563;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: var(--bg-main);
+	color: var(--text);
+	font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+.menu-toggle {
+	width: 100%;
+	padding: 16px 20px;
+	display: flex;
+	justify-content: flex-start;
+}
+
+.btn-hamburguesa {
+	width: 42px;
+	height: 42px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--bg-surface);
+	color: var(--text);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-hamburguesa:hover {
+	background: #22293a;
+	border-color: var(--accent);
+}
+
+.content {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 28px;
+	padding: 10px 20px 40px;
+}
+
+.search-box {
+	display: inline-flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.search-box input[type="text"] {
+	width: 260px;
+	height: 40px;
+	padding: 0 12px;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: var(--bg-surface);
+	color: var(--text);
+	font-size: 15px;
+	outline: none;
+}
+
+.search-box input::placeholder {
+	color: var(--muted);
+}
+
+.icon-button {
+	width: 42px;
+	height: 42px;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--bg-surface);
+	color: var(--text);
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.icon-button:hover {
+	background: #22293a;
+	border-color: var(--accent);
+}
+
+#sidebar h2 {
+	margin: 0;
+	font-weight: 600;
+	letter-spacing: 0.3px;
+}
